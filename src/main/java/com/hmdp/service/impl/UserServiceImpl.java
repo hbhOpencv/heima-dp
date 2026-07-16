@@ -65,8 +65,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         String code = RandomUtil.randomNumbers(6);
         // 4.保存验证码到session
         session.setAttribute(LOGIN_CODE_KEY + phone, code);
-        // 5.发送验证码
-        log.info("发送验证码到手机号：{}，验证码：{}", phone, code);
+        // 5.发送验证码，这里简单打印日志，后续完善去发送短信验证码
+        log.debug("发送验证码到手机号：{}，验证码：{}", phone, code);
         // 返回ok
         return Result.ok();
 
@@ -82,48 +82,33 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     public Result login(LoginFormDTO loginForm, HttpSession session) {
         // 1.校验手机号
         String phone = loginForm.getPhone();
-        if (RegexUtils.isPhoneInvalid(phone)) {
-            // 如果不符合，返回错误信息
-            return Result.fail("手机号格式错误！");
+        if(RegexUtils.isPhoneInvalid(phone)){
+            return Result.fail("手机号不一致！");
         }
         // 2.校验验证码
-        String cacheCode = stringRedisTemplate.opsForValue().get(LOGIN_CODE_KEY + phone);
-        String formCode = loginForm.getCode();
-        if (RegexUtils.isCodeInvalid(formCode) || !cacheCode.equals(formCode)) {
-            // 3.如果不符合或不一致，返回错误信息
-            return Result.fail("验证码错误！");
+        String code = loginForm.getCode();
+        String cacheCode = session.getAttribute(LOGIN_CODE_KEY + phone).toString();
+        if(!cacheCode.equals(code)||code==null) {
+            return Result.fail("验证码不一致！");
         }
         // 4.一致，根据手机号查询用户
         User user = query().eq("phone", phone).one();
-        // 5.判断用户是否存在
-        if (ObjectUtils.isEmpty(user)) {
-            // 6.不存在，创建新用户并保存
-            user = createUserWithPhone(phone);
+        // 5.判断用户是否存在不存在则创建
+        if(user == null){
+             user = createUserWithPhone(phone);
         }
-        // 7.保存用户信息到redis中
-        // 7.1 随机生成token,作为登录令牌
-        String token = UUID.randomUUID().toString(true);
-        // 7.2 将User对象转为Hash存储
-        UserDTO userDTO = BeanUtil.toBean(user, UserDTO.class);
-        Map<String, Object> userMap = BeanUtil.beanToMap(userDTO,new HashMap<>(),
-                CopyOptions.create()
-                        .setIgnoreNullValue(true)
-                        .setFieldValueEditor((fileName,fileValue)->fileValue.toString()));
-        // 7.3 存储
-        String tokenKey = LOGIN_USER_KEY + token;
-        stringRedisTemplate.opsForHash().putAll(tokenKey, userMap);
-        // 7.4 设置有效期
-        stringRedisTemplate.expire(tokenKey, LOGIN_USER_TTL, TimeUnit.SECONDS);
-        // 8.返回token
-        return Result.ok(token);
+        //保存到session中
+        session.setAttribute("user", user);
+        return Result.ok();
     }
 
     private User createUserWithPhone(String phone) {
-        // 1.创建用户
         User user = new User();
         user.setPhone(phone);
         user.setNickName(USER_NICK_NAME_PREFIX + RandomUtil.randomString(10));
         save(user);
         return user;
     }
+
+
 }
