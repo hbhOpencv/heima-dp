@@ -17,6 +17,7 @@ import com.hmdp.service.IUserService;
 import com.hmdp.utils.RegexUtils;
 import lombok.extern.log4j.Log4j;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.catalina.mbeans.UserMBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -98,7 +99,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
              user = createUserWithPhone(phone);
         }
         //保存到session中
-        session.setAttribute("user", user);
+        UserDTO userDTO = BeanUtil.copyProperties(user, UserDTO.class);//将user对象转换为userDTO对象,只复制id、nickName、icon字段
+        session.setAttribute("user", userDTO);
         return Result.ok();
     }
 
