@@ -1,32 +1,32 @@
 package com.hmdp.config;
 
 import com.hmdp.interceptor.LoginInterceptor;
-import lombok.Data;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter;
 
 import javax.annotation.Resource;
 
-/**
- * @author: yangguang
- * @data 2025年12月12日 16:38
- */
 @Configuration
-public class MvcConfig implements WebMvcConfigurer {
-    @Resource
-    private StringRedisTemplate stringRedisTemplate;
+public class MvcConfig extends WebMvcConfigurerAdapter {
+    @Resource//使用注解注入LoginInterceptor组件
+    private LoginInterceptor loginInterceptor;
+    //将LoginInterceptor组件添加到拦截器注册中,并指定拦截路径和排除路径
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        registry.addInterceptor(new LoginInterceptor(stringRedisTemplate))
+        registry.addInterceptor(loginInterceptor)
                 .excludePathPatterns(
-                        "/blog/hot",
-                        "/shop/**",
-                        "/voucher/**",
-                        "/shop-type/**",
-                        "/user/login",
                         "/user/code"
+                        ,"/user/login"
+                        ,"/blog/hot"
+                        ,"/upload/**"
+                        ,"/shop-type/**"
+                        ,"/shop/**"
+                        ,"/voucher/**"
                 );
+
     }
+
+
+
 }
