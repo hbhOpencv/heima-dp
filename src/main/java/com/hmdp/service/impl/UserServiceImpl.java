@@ -96,6 +96,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }
         // 4.一致，根据手机号查询用户
         User user = query().eq("phone", phone).one();
+
         // 5.判断用户是否存在不存在则创建
         if(user == null){
              user = createUserWithPhone(phone);
