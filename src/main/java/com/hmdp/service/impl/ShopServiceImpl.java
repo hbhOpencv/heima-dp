@@ -92,21 +92,35 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
             boolean lock = lock(key);
             if(!lock){
                 Thread.sleep(50);
-                return queryWithPassthrough(id);
+                return queryWithMutex(id);
+            }
+            s = stringRedisTemplate.opsForValue().get(CACHE_SHOP_KEY + id);
+            if(StrUtil.isNotBlank(s)){
+                if(s.equals("vaild")){
+                    unlock(key);
+                    return null;//缓存中为空字符串
+                }
+                Shop shop = JSONUtil.toBean(s, Shop.class);
+                unlock(key);
+                return shop;
             }
             Shop shop = getById(id);
+            Thread.sleep(200);
             //数据库中查询商铺是否存在
             //不存在
             if(shop == null)  {
-                stringRedisTemplate.opsForValue().set(CACHE_SHOP_KEY + id, "", CACHE_NULL_TTL, TimeUnit.MINUTES);
+                stringRedisTemplate.opsForValue().set(CACHE_SHOP_KEY + id, "vaild", CACHE_NULL_TTL, TimeUnit.MINUTES);
+                unlock(key);
+                System.out.println("锁释放");
                 return null;
             }
             //存在则保存到redis中
             stringRedisTemplate.opsForValue().set(CACHE_SHOP_KEY + id, JSONUtil.toJsonStr(shop), CACHE_SHOP_TTL, TimeUnit.MINUTES);
             unlock(key);
+            System.out.println("锁释放");
             return shop;
         }
-        if("".equals(s)) return null;//缓存中为空字符串
+        if(s.equals("vaild")) return null;//缓存中为空字符串
         //返回商铺信息
         Shop shop = JSONUtil.toBean(s, Shop.class);
         return shop;
@@ -117,7 +131,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
 
     //加锁
     public boolean lock(String key){
-        Boolean b = stringRedisTemplate.opsForValue().setIfAbsent(key, "1", 200, TimeUnit.SECONDS);
+        Boolean b = stringRedisTemplate.opsForValue().setIfAbsent(key, "1", LOCK_SHOP_TTL, TimeUnit.SECONDS);
         return BooleanUtil.isTrue(b);
     }
     //释放锁
