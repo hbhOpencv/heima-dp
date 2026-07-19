@@ -11,6 +11,7 @@ import org.apache.coyote.Response;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 
@@ -53,6 +54,9 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
         return Result.ok(shop);
     }
 
+    @Transactional
+    //开启事物
+    //更新商铺信息
     @Override
     public Result updateByBody(Shop shop) {
         if(shop.getId() == null) return Result.fail("商铺id不能为空");
