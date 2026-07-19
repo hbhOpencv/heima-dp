@@ -69,14 +69,14 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
             //数据库中查询商铺是否存在
             //不存在
             if (shop == null) {
-                stringRedisTemplate.opsForValue().set(CACHE_SHOP_KEY + id, "", CACHE_NULL_TTL, TimeUnit.MINUTES);
+                stringRedisTemplate.opsForValue().set(CACHE_SHOP_KEY + id, "vaild", CACHE_NULL_TTL, TimeUnit.MINUTES);
                 return null;
             }
             //存在则保存到redis中
             stringRedisTemplate.opsForValue().set(CACHE_SHOP_KEY + id, JSONUtil.toJsonStr(shop), CACHE_SHOP_TTL, TimeUnit.MINUTES);
             return shop;
         }
-        if ("".equals(s)) return null;//缓存中为空字符串
+        if (s.equals("vaild")) return null;//缓存中为空字符串
         //返回商铺信息
         Shop shop = JSONUtil.toBean(s, Shop.class);
         return shop;
