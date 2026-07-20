@@ -1,9 +1,21 @@
 package com.hmdp;
 
+import com.hmdp.service.impl.ShopServiceImpl;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+
+import java.time.LocalDateTime;
 
 @SpringBootTest
 class HmDianPingApplicationTests {
+    @Autowired
+    private ShopServiceImpl shopService;
+    //shopService.saveShop2Redis(1L, LocalDateTime.now().plusMinutes(1));//bean的方法只能在class
+    @Test
+    void test1() throws InterruptedException {
+        shopService.saveShop2Redis(1L, 2L);
+    }
 
 
 }
