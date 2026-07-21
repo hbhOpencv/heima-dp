@@ -9,6 +9,8 @@ import com.hmdp.service.IVoucherOrderService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.utils.RedisIdWorker;
 import com.hmdp.utils.UserHolder;
+import lombok.NonNull;
+import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,19 +34,32 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
 
 
     @Override
-    @Transactional
     public Result seckillVoucher(Long voucherId) {
         SeckillVoucher seckillVoucher = seckillVoucherService.getById(voucherId);
         //判断秒杀是否过期
         LocalDateTime endTime = seckillVoucher.getEndTime();
-        LocalDateTime now = LocalDateTime.now();
-        if(now.isAfter(endTime)){
+        if(LocalDateTime.now().isAfter(endTime)){
             return Result.fail("优惠券已过期");
         }
         //判断库存是否充足
         Integer stock = seckillVoucher.getStock();
         if(stock<1){
             return Result.fail("优惠券已售罄");
+        }
+        Long userId = UserHolder.getUser().getId();
+        synchronized (userId.toString().intern()) {
+            IVoucherOrderService proxy = (IVoucherOrderService) AopContext.currentProxy();
+            return proxy.createVoucherOrder(voucherId);
+        }
+    }
+
+    @Transactional
+    public Result createVoucherOrder(Long voucherId) {
+        Long userId = UserHolder.getUser().getId();
+        /*判断用户是否已购买过该优惠券，一个用户只能买一种秒杀优惠券的一个*/
+        Integer count = query().eq("user_id", userId).eq("voucher_id", voucherId).count();
+        if(count>0){
+            return Result.fail("您已购买过该优惠券");
         }
         //扣减库存
         boolean success = seckillVoucherService.update()
@@ -60,8 +75,8 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         VoucherOrder voucherOrder = new VoucherOrder();
         voucherOrder.setId(orderId);
         voucherOrder.setVoucherId(voucherId);
-        voucherOrder.setCreateTime(now);
-        voucherOrder.setUserId(UserHolder.getUser().getId());//设置下单的用户id，
+        voucherOrder.setCreateTime(LocalDateTime.now());
+        voucherOrder.setUserId(userId);//设置下单的用户id，
         // 拦截器中获取用户id，userHolder.getUser().getId()
         //保存订单
         save(voucherOrder);
