@@ -11,6 +11,7 @@ import com.hmdp.utils.RedisIdWorker;
 import com.hmdp.utils.UserHolder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
@@ -31,6 +32,7 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
 
 
     @Override
+    @Transactional
     public Result seckillVoucher(Long voucherId) {
         SeckillVoucher seckillVoucher = seckillVoucherService.getById(voucherId);
         //判断秒杀是否过期
@@ -41,13 +43,14 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         }
         //判断库存是否充足
         Integer stock = seckillVoucher.getStock();
-        if(stock<=0){
+        if(stock<1){
             return Result.fail("优惠券已售罄");
         }
         //扣减库存
         boolean success = seckillVoucherService.update()
                 .setSql("stock = stock - 1")
-                .eq("voucher_id", voucherId)
+                .eq("voucher_id", voucherId).gt("stock",0)//判断库存是否充足（乐观锁）
+                // .eq("stock",stock)判断此时库存是否和刚刚读的一样，不一样则说明有其他用户秒杀了，无法执行，这个失败率太高不如使用上面这个
                 .update();//这是个啥操作?更新秒杀优惠券的库存
         if(!success){//为啥在这判断库存是否充足？
             //因为秒杀是并发操作,可能有多个用户同时秒杀,导致库存不足
