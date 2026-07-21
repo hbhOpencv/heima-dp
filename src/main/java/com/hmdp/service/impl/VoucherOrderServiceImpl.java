@@ -1,10 +1,18 @@
 package com.hmdp.service.impl;
 
+import com.hmdp.dto.Result;
+import com.hmdp.entity.SeckillVoucher;
 import com.hmdp.entity.VoucherOrder;
 import com.hmdp.mapper.VoucherOrderMapper;
+import com.hmdp.service.ISeckillVoucherService;
 import com.hmdp.service.IVoucherOrderService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.hmdp.utils.RedisIdWorker;
+import com.hmdp.utils.UserHolder;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
 
 /**
  * <p>
@@ -16,5 +24,45 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, VoucherOrder> implements IVoucherOrderService {
+    @Autowired
+    private ISeckillVoucherService seckillVoucherService;
+    @Autowired
+    private RedisIdWorker redisIdWorker;
 
+
+    @Override
+    public Result seckillVoucher(Long voucherId) {
+        SeckillVoucher seckillVoucher = seckillVoucherService.getById(voucherId);
+        //判断秒杀是否过期
+        LocalDateTime endTime = seckillVoucher.getEndTime();
+        LocalDateTime now = LocalDateTime.now();
+        if(now.isAfter(endTime)){
+            return Result.fail("优惠券已过期");
+        }
+        //判断库存是否充足
+        Integer stock = seckillVoucher.getStock();
+        if(stock<=0){
+            return Result.fail("优惠券已售罄");
+        }
+        //扣减库存
+        boolean success = seckillVoucherService.update()
+                .setSql("stock = stock - 1")
+                .eq("voucher_id", voucherId)
+                .update();//这是个啥操作?更新秒杀优惠券的库存
+        if(!success){//为啥在这判断库存是否充足？
+            //因为秒杀是并发操作,可能有多个用户同时秒杀,导致库存不足
+            return Result.fail("库存不足");
+        }
+        Long orderId = redisIdWorker.nextId("voucher_order");//生成订单id
+        VoucherOrder voucherOrder = new VoucherOrder();
+        voucherOrder.setId(orderId);
+        voucherOrder.setVoucherId(voucherId);
+        voucherOrder.setCreateTime(now);
+        voucherOrder.setUserId(UserHolder.getUser().getId());//设置下单的用户id，
+        // 拦截器中获取用户id，userHolder.getUser().getId()
+        //保存订单
+        save(voucherOrder);
+        //返回订单id
+        return Result.ok(orderId);
+    }
 }

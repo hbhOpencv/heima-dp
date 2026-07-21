@@ -60,10 +60,10 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
 //        //返回商铺信息
 //        Shop shop = JSONUtil.toBean(s, Shop.class);
 //        return Result.ok(shop);
-        //Shop shop = queryWithMutex(id);
+        Shop shop = queryWithMutex(id);
         //Shop shop1 = queryWithPassthrough(id);
 
-        Shop shop = queryWithLogicalExpire(id);
+        //Shop shop = queryWithLogicalExpire(id);
 
         return Result.ok(shop);
 

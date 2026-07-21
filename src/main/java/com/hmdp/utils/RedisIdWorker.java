@@ -16,7 +16,7 @@ public class RedisIdWorker {
     private static final long BEGIN_TIMESTAMP = 1672491599L;
     private static final long COUNT_BITS = 32L;
     @Autowired
-    private StringRedisTemplate stringRedisTemplate;
+    private  StringRedisTemplate stringRedisTemplate;
     //构造方法注入
 //    @Autowired
 //    public RedisIdWorker(StringRedisTemplate stringRedisTemplate) {
@@ -24,7 +24,7 @@ public class RedisIdWorker {
 //    }
 
 
-    public Long nextId(String key){
+    public  Long nextId(String key){
         //时间戳的计算
         LocalDateTime now = LocalDateTime.now();
         long epochSecond = now.toEpochSecond(ZoneOffset.UTC);
