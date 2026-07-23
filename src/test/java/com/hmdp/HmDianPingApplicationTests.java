@@ -8,6 +8,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -41,7 +44,25 @@ class HmDianPingApplicationTests {
         countDownLatch.await();
     }
 
+    @Test
+    void test3() throws InterruptedException {
+        List<Integer> list = new ArrayList<>();
+        list.add(1);
+        list.add(2);
+        list.add(2);
+        list.add(1);
+        for(int i = 0,j = list.size()-1;i<=j;i++,j--){
+            if (list.get(i) == list.get(j)) {
+                System.out.println("是回文");
+            }
+        }
+
     }
+
+
+    }
+
+
 
 
 
