@@ -11,6 +11,7 @@ import com.hmdp.utils.RedisIdWorker;
 import com.hmdp.utils.SimpleRedisLock;
 import com.hmdp.utils.UserHolder;
 import lombok.NonNull;
+import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.aop.framework.AopContext;
@@ -41,6 +42,7 @@ import java.util.logging.Handler;
  * @author 虎哥
  * @since 2021-12-22
  */
+@Slf4j
 @Service
 public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, VoucherOrder> implements IVoucherOrderService {
     @Autowired
@@ -101,6 +103,7 @@ private final BlockingQueue<VoucherOrder> orderTasks = new ArrayBlockingQueue<>(
         Long result = stringRedisTemplate.execute(SECKILL_SCRIPT,
                 Collections.emptyList(), voucherId.toString(),
                 userId.toString());//执行秒杀脚本
+      //  System.out.println("-----");
         if(result.intValue()!=0){
             if(result.intValue()==1){
                 return Result.fail("库存不足");
@@ -167,33 +170,55 @@ private final BlockingQueue<VoucherOrder> orderTasks = new ArrayBlockingQueue<>(
 
 
     @Transactional
-    public Result createVoucherOrder(Long voucherId) {
-        Long userId = UserHolder.getUser().getId();
+    public void createVoucherOrder(VoucherOrder voucherOrder) {
+        Long userId = voucherOrder.getUserId();
         /*判断用户是否已购买过该优惠券，一个用户只能买一种秒杀优惠券的一个*/
-        Integer count = query().eq("user_id", userId).eq("voucher_id", voucherId).count();
+        Integer count = query().eq("user_id", userId).eq("voucher_id", voucherOrder.getVoucherId()).count();
         if(count>0){
-            return Result.fail("您已购买过该优惠券");
+            log.error("用户已经购买过一次");
+           return;
         }
         //扣减库存
         boolean success = seckillVoucherService.update()
                 .setSql("stock = stock - 1")
-                .eq("voucher_id", voucherId).gt("stock",0)//判断库存是否充足（乐观锁）
+                .eq("voucher_id", voucherOrder.getVoucherId()).gt("stock",0)//判断库存是否充足（乐观锁）
                 // .eq("stock",stock)判断此时库存是否和刚刚读的一样，不一样则说明有其他用户秒杀了，无法执行，这个失败率太高不如使用上面这个
                 .update();//这是个啥操作?更新秒杀优惠券的库存
         if(!success){//为啥在这判断库存是否充足？
             //因为秒杀是并发操作,可能有多个用户同时秒杀,导致库存不足
-            return Result.fail("库存不足");
+            log.error("库存不足");
+            return;
         }
-        Long orderId = redisIdWorker.nextId("voucher_order");//生成订单id
-        VoucherOrder voucherOrder = new VoucherOrder();
-        voucherOrder.setId(orderId);
-        voucherOrder.setVoucherId(voucherId);
-        voucherOrder.setCreateTime(LocalDateTime.now());
-        voucherOrder.setUserId(userId);//设置下单的用户id，
-        // 拦截器中获取用户id，userHolder.getUser().getId()
-        //保存订单
         save(voucherOrder);
-        //返回订单id
-        return Result.ok(orderId);
     }
+//    @Transactional
+//    public Result createVoucherOrder(Long voucherId) {
+//        Long userId = UserHolder.getUser().getId();
+//        /*判断用户是否已购买过该优惠券，一个用户只能买一种秒杀优惠券的一个*/
+//        Integer count = query().eq("user_id", userId).eq("voucher_id", voucherId).count();
+//        if(count>0){
+//            return Result.fail("您已购买过该优惠券");
+//        }
+//        //扣减库存
+//        boolean success = seckillVoucherService.update()
+//                .setSql("stock = stock - 1")
+//                .eq("voucher_id", voucherId).gt("stock",0)//判断库存是否充足（乐观锁）
+//                // .eq("stock",stock)判断此时库存是否和刚刚读的一样，不一样则说明有其他用户秒杀了，无法执行，这个失败率太高不如使用上面这个
+//                .update();//这是个啥操作?更新秒杀优惠券的库存
+//        if(!success){//为啥在这判断库存是否充足？
+//            //因为秒杀是并发操作,可能有多个用户同时秒杀,导致库存不足
+//            return Result.fail("库存不足");
+//        }
+//        Long orderId = redisIdWorker.nextId("voucher_order");//生成订单id
+//        VoucherOrder voucherOrder = new VoucherOrder();
+//        voucherOrder.setId(orderId);
+//        voucherOrder.setVoucherId(voucherId);
+//        voucherOrder.setCreateTime(LocalDateTime.now());
+//        voucherOrder.setUserId(userId);//设置下单的用户id，
+//        // 拦截器中获取用户id，userHolder.getUser().getId()
+//        //保存订单
+//        save(voucherOrder);
+//        //返回订单id
+//        return Result.ok(orderId);
+//    }
 }
