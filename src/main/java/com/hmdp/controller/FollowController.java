@@ -31,4 +31,10 @@ public class FollowController {
     public Result isFollow(@PathVariable Long id) {
         return followService.isFollow(id);
     }
+    @GetMapping("/common/{id}")
+    public Result commonFollow(@PathVariable Long id) {
+        return followService.commonFollow(id);
+    }
+
+
 }

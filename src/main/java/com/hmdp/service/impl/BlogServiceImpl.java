@@ -3,6 +3,8 @@ package com.hmdp.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.BooleanUtil;
 import cn.hutool.core.util.StrUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hmdp.dto.Result;
 import com.hmdp.dto.UserDTO;
@@ -155,5 +157,26 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         User user = userService.getById(userId);
         blog.setName(user.getNickName());
         blog.setIcon(user.getIcon());
+    }
+
+    @Override
+    public Result queryUserBlog(Integer current, Long id) {
+//        LambdaQueryWrapper<Blog> blogLambdaQueryWrapper = new LambdaQueryWrapper<>();// 查询用户id等于id的探店博文
+//        blogLambdaQueryWrapper.eq(Blog::getUserId, id);// 筛选出用户id等于id的探店博文
+//        Page<Blog> pageInfo = new Page<>(current, SystemConstants.MAX_PAGE_SIZE);// 分页查询
+//        page(pageInfo, blogLambdaQueryWrapper);// 执行分页查询
+//        List<Blog> records = pageInfo.getRecords();// 获取当前页数据
+//        return Result.ok(records);// 返回当前页数据
+
+        Page<Blog> page = query().eq("user_id", id).page(new Page<>(current, SystemConstants.MAX_PAGE_SIZE));
+        List<Blog> records = page.getRecords();
+        return Result.ok(records);
+
+//// 根据用户查询
+//        Page<Blog> page = blogService.query()
+//                .eq("user_id", id).page(new Page<>(current, SystemConstants.MAX_PAGE_SIZE));
+//        // 获取当前页数据
+//        List<Blog> records = page.getRecords();
+//        return Result.ok(records);
     }
 }

@@ -56,4 +56,9 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
         Integer count = query().eq("user_id", userId).eq("follow_user_id", id).count();
         return Result.ok(count > 0);//如果count大于0，说明关注了该用户,返回true
     }
+
+    @Override
+    public Result commonFollow(Long id) {
+        return null;
+    }
 }

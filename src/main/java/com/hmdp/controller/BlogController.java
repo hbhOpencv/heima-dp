@@ -62,7 +62,7 @@ public class BlogController {
         return Result.ok(records);
     }
 
-    @GetMapping("/hot")
+    @GetMapping("/hot")//分页查询热门探店博文
     public Result queryHotBlog(@RequestParam(value = "current", defaultValue = "1") Integer current) {
         return blogService.queryHotId(current);
     }
@@ -75,6 +75,13 @@ public class BlogController {
         return blogService.queryLikes(id);
     }
 
+    @GetMapping("/of/user")
+    public Result queryUserBlog(@RequestParam(value = "current", defaultValue = "1") Integer current,@RequestParam("id") Long id) {{
+        return blogService.queryUserBlog(current, id);
+    }
+
+
+    }
 
 
 
