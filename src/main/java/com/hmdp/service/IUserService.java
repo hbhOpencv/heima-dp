@@ -31,4 +31,8 @@ public interface IUserService extends IService<User> {
     Result login(LoginFormDTO loginForm, HttpSession session);
 
     Result queryById(Long id);
+
+    Result sign();
+
+    Result signCount();
 }

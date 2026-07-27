@@ -233,9 +233,12 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
 
     @Override
     public Result queryShopByType(Integer typeId, Integer current, Double x, Double y) {
+        if(query().eq("type_id", typeId).count() == 0){
+            return Result.ok(Collections.emptyList());
+        }
         if(x == null || y == null){
             // 根据类型分页查询
-            Page<Shop> page = query()
+            Page<Shop> page =  query()
                     .eq("type_id", typeId)
                     .page(new Page<>(current, SystemConstants.DEFAULT_PAGE_SIZE));
             // 返回数据

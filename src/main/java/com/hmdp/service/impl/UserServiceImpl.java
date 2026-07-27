@@ -15,10 +15,12 @@ import com.hmdp.entity.User;
 import com.hmdp.mapper.UserMapper;
 import com.hmdp.service.IUserService;
 import com.hmdp.utils.RegexUtils;
+import com.hmdp.utils.UserHolder;
 import lombok.extern.log4j.Log4j;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.catalina.mbeans.UserMBean;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.connection.BitFieldSubCommands;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -27,7 +29,10 @@ import javax.annotation.Resource;
 import javax.servlet.http.HttpSession;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -139,5 +144,50 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }
         UserDTO userDTO = BeanUtil.copyProperties(user, UserDTO.class);
         return Result.ok(userDTO);
+    }
+
+
+    @Override
+    public Result sign() {
+        Long userId = UserHolder.getUser().getId();//从userHolder中获取用户id
+        LocalDateTime now = LocalDateTime.now();
+        String signDate = now.format(DateTimeFormatter.ofPattern(":yyyyMM"));//格式化时间为yyyyMM格式
+        String key = USER_SIGN_KEY + userId + signDate;
+        int count = now.getDayOfMonth();//获取当前日期是当前月的第几天
+        stringRedisTemplate.opsForValue().setBit(key,count-1,true);
+        return Result.ok();
+    }
+
+    //查询用户截至到当前日期的连续签到天数
+    @Override
+    public Result signCount() {
+        Long userId = UserHolder.getUser().getId();//从userHolder中获取用户id
+        LocalDateTime now = LocalDateTime.now();
+        String signDate = now.format(DateTimeFormatter.ofPattern(":yyyyMM"));//格式化时间为yyyyMM格式
+        String key = USER_SIGN_KEY + userId + signDate;
+        int count = now.getDayOfMonth();//获取当前日期是当前月的第几天
+
+        List<Long> list = stringRedisTemplate.opsForValue().bitField(key, BitFieldSubCommands.create()
+                .get(BitFieldSubCommands.BitFieldType.signed(count))
+                .valueAt(0));
+        if(list == null || list.isEmpty()){
+            return Result.ok(0);
+        }
+        Long signCount = list.get(0);
+        if(signCount == null){
+            return Result.ok(0);
+        }
+        int sum = 0;
+        while (true){
+            if((signCount & 1)== 1){
+                sum++;
+            }else {
+                break;
+            }
+            signCount >>>= 1;//无符号右移，将signCount的二进制表示右移1位，将最低位的0填充到最高位
+            // 例如：signCount = 1010，右移1位后为 0101，即 5
+        }
+        return Result.ok(sum);
+
     }
 }
