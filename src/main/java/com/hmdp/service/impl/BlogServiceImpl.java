@@ -7,17 +7,21 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hmdp.dto.Result;
+import com.hmdp.dto.ScrollResult;
 import com.hmdp.dto.UserDTO;
 import com.hmdp.entity.Blog;
+import com.hmdp.entity.Follow;
 import com.hmdp.entity.User;
 import com.hmdp.mapper.BlogMapper;
 import com.hmdp.service.IBlogService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.hmdp.service.IFollowService;
 import com.hmdp.service.IUserService;
 import com.hmdp.utils.SystemConstants;
 import com.hmdp.utils.UserHolder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -27,6 +31,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.hmdp.utils.RedisConstants.BLOG_LIKED_KEY;
+import static com.hmdp.utils.RedisConstants.FEED_KEY;
 
 /**
  * <p>
@@ -42,6 +47,8 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     private IUserService userService;
     @Autowired
     private StringRedisTemplate stringRedisTemplate;
+    @Autowired
+    private IFollowService followService;
 
     @Override
     public Result queryId(Long id) {
@@ -151,7 +158,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
 //        return Result.ok(userDTOS);
 
     }
-
+    // 查询发布该blog的用户信息
     private void extracted(Blog blog) {
         Long userId = blog.getUserId();
         User user = userService.getById(userId);
@@ -178,5 +185,73 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
 //        // 获取当前页数据
 //        List<Blog> records = page.getRecords();
 //        return Result.ok(records);
+    }
+
+    // 查询关注用户的探店博文
+    @Override
+    public Result queryBlogOfFollow(Long max, Integer offset) {
+        Long userId = UserHolder.getUser().getId();
+        String key = FEED_KEY + userId;
+        Set<ZSetOperations.TypedTuple<String>> typedTuples = stringRedisTemplate
+                .opsForZSet().reverseRangeByScoreWithScores(key, 0, max, offset, 3);
+        if(typedTuples == null||typedTuples.isEmpty()){
+            return Result.ok(Collections.emptyList());
+        }
+        long mintime = 0;
+        int count = 1;
+        ArrayList<Long> ids = new ArrayList<>(typedTuples.size());
+        for (ZSetOperations.TypedTuple<String> typedTuple : typedTuples) {
+            String blogId = typedTuple.getValue();
+            ids.add(Long.valueOf(blogId));
+            long time = typedTuple.getScore().longValue();
+            if(mintime == time){
+                count++;
+            }else {
+                mintime = time;
+                count = 1;
+            }
+        }
+        List<Blog> blogs = new ArrayList<>();
+        for (Long id : ids) {
+            Blog blog = getById(id);
+            blogs.add(blog);
+        }
+
+        for (Blog blog : blogs) {
+            extracted(blog);
+            isBlogLiked(blog);
+        }
+
+        ScrollResult scrollResult = new ScrollResult();
+        scrollResult.setList(blogs);
+        scrollResult.setMinTime(mintime);
+        scrollResult.setOffset(offset);
+        return Result.ok(scrollResult);
+    }
+
+
+    // 保存探店博文，把博文推送到粉丝用户的feed中
+    @Override
+    public Result saveBlog(Blog blog) {
+        // 获取登录用户
+        UserDTO user = UserHolder.getUser();
+        blog.setUserId(user.getId());
+        // 保存探店博文
+        boolean save = save(blog);
+        if(save){
+            List<Follow> followUsers = followService.query().eq("follow_user_id", user.getId()).list();
+            for (Follow followUser : followUsers) {
+                Long userId = followUser.getUserId();
+                String key = FEED_KEY + userId;
+                stringRedisTemplate.opsForZSet().add(key,blog.getId().toString(),System.currentTimeMillis());
+            }
+            return Result.ok(blog.getId());
+        }
+        return Result.fail("保存失败");
+
+
+
+
+
     }
 }
