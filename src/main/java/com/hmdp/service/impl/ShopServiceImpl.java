@@ -116,6 +116,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
                 return queryWithMutex(id);
             }
             s = stringRedisTemplate.opsForValue().get(CACHE_SHOP_KEY + id);
+
             if(StrUtil.isNotBlank(s)){
                 if(s==null){
                     unlock(key);
@@ -141,7 +142,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
             System.out.println("锁释放");
             return shop;
         }
-        if(s.equals("vaild")) return null;//缓存中为空字符串
+        if(s.equals("")) return null;//缓存中为空字符串
         //返回商铺信息
         Shop shop = JSONUtil.toBean(s, Shop.class);
         return shop;

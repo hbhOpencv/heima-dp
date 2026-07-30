@@ -83,7 +83,7 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
         Set<String> commonFollows = stringRedisTemplate.opsForSet().intersect(key, key1);
         if(commonFollows.isEmpty()||commonFollows == null){
             return Result.ok(Collections.emptyList());
-        }
+        }//
         List<UserDTO> commonFollowList = new ArrayList<>();
         for (String commonFollow : commonFollows) {
             Long commonId = Long.parseLong(commonFollow);
